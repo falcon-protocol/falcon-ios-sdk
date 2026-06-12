@@ -9,7 +9,7 @@ Falcon is an iOS SDK for embedding ad placements directly inside your app. Place
 1. In Xcode, choose **File > Add Package Dependencies…**
 2. Enter the repository URL: `https://github.com/falcon-protocol/falcon-ios-sdk.git`
 3. Under **Dependency Rule**, select **Up to Next Major Version**.
-4. Add `Falcon` to your app target.
+4. Add the `FalconSDK` library to your app target.
 
 ---
 
@@ -209,6 +209,8 @@ Falcon.events(layoutId: "APP_NATIVE_ESSENTIAL_0.1") { event in
 | `.placementInteractive` | More than 50% of the placement has been visible on screen for at least 1 second. Fired at most once per `execute` call. |
 | `.placementCompleted` | The placement was engaged with and removed from the UI. |
 | `.placementFailure(Error)` | The placement failed to load. |
+
+Handlers retain whatever they capture (often a view controller) until removed or overwritten — call `Falcon.removeEventsHandler(layoutId:)` when you no longer need the subscription.
 
 ---
 
