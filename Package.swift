@@ -15,8 +15,8 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "FalconSDK",
-            url: "https://github.com/falcon-protocol/falcon-ios-sdk/releases/download/1.3.1/FalconSDK.xcframework.zip",
-            checksum: "afe402f7f4ca3264187eb6e33f6820e10854de053519087cd41b5a17e7e0390c"
+            url: "https://github.com/falcon-protocol/falcon-ios-sdk/releases/download/1.3.2/FalconSDK.xcframework.zip",
+            checksum: "15283e6e6882d68e27ecca2d322026f828e5ab21011b458e87b237313beace37"
         )
     ]
 )
