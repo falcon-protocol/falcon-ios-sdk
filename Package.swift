@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "FalconSDK",
     platforms: [
-        .iOS(.v14)
+        .iOS(.v15)
     ],
     products: [
         .library(
@@ -15,8 +15,8 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "FalconSDK",
-            url: "https://github.com/falcon-protocol/falcon-ios-sdk/releases/download/1.3.2/FalconSDK.xcframework.zip",
-            checksum: "15283e6e6882d68e27ecca2d322026f828e5ab21011b458e87b237313beace37"
+            url: "https://github.com/falcon-protocol/falcon-ios-sdk/releases/download/1.4.0/FalconSDK.xcframework.zip",
+            checksum: "84ce0492e8979b581fbc6aa299be97ca5ecd81e34ea29561a201785f825e6bed"
         )
     ]
 )

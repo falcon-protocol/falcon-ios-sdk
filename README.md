@@ -1,6 +1,6 @@
 # Falcon iOS SDK
 
-Falcon is an iOS SDK for embedding ad placements directly inside your app. Placements are rendered inside a `WKWebView`-backed `FalconEmbeddedView` and communicate with the Falcon backend over a lightweight JavaScript bridge. The SDK requires iOS 14 or later and is distributed via Swift Package Manager.
+Falcon is an iOS SDK for embedding ad placements directly inside your app. Placements are rendered inside a `WKWebView`-backed `FalconEmbeddedView` and communicate with the Falcon backend over a lightweight JavaScript bridge. The SDK requires iOS 15 or later and is distributed via Swift Package Manager.
 
 ---
 
@@ -15,7 +15,7 @@ Or in a `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/falcon-protocol/falcon-ios-sdk.git", from: "1.3.2"),
+    .package(url: "https://github.com/falcon-protocol/falcon-ios-sdk.git", from: "1.4.0"),
 ],
 ```
 
@@ -107,7 +107,9 @@ class OrderStatusViewController: UIViewController {
 
 ### Overlay Placement
 
-An overlay placement presents as a full-screen modal — no `FalconEmbeddedView` needed. Pass `.overlay` as the placement and the SDK presents the modal itself. The web content dismisses it when the user closes the offer (via the `close` bridge event). Callbacks and events (`onLoad`, `onUnload`, `onError`, `.placementInteractive`, `.placementCompleted`) behave identically to inline placements.
+An overlay placement presents as a full-screen modal — no `FalconEmbeddedView` needed. Pass `.overlay` as the placement and the SDK presents the modal itself. The web content dismisses it when the user closes the offer (via the `close` bridge event), and a failure dismisses it too. Callbacks and events (`onLoad`, `onUnload`, `onError`, `.placementInteractive`, `.placementCompleted`) behave as for inline placements.
+
+**No fill.** When there is no offer to show, the overlay dismisses itself and the host gets only `onShouldHideLoadingIndicator`: no `onLoad`, `onUnload`, `onError` or event, as an inline placement stays at height 0 with no callback. There is nothing for the host to do. A host that needs to know can treat `onShouldHideLoadingIndicator` with no `onLoad` right after it as a no-fill: on a load the SDK calls the two back to back.
 
 **UIKit**
 
@@ -203,10 +205,10 @@ All callbacks are dispatched on the **main thread** and are safe to use for UI u
 | Callback | Description |
 |---|---|
 | `onLoad` | Called once when the placement has rendered content and become visible. |
-| `onUnload` | Called when the placement is removed from the UI (e.g. the user closed it). |
+| `onUnload` | Called when the user or the page closes the placement. Not called for a no-fill, a failure, or when the host removes the view. |
 | `onError` | Called with a `FalconError` when the placement cannot be shown. |
 | `onShouldShowLoadingIndicator` | Called immediately when `execute` begins — show your loading UI now. |
-| `onShouldHideLoadingIndicator` | Called once the placement has settled (loaded or determined no-fill) — hide your loading UI. |
+| `onShouldHideLoadingIndicator` | Called once the placement has settled (loaded, no-fill or failed) — hide your loading UI. For a no-fill it is the only callback; an overlay dismisses itself. |
 
 ```swift
 Falcon.execute(
@@ -258,7 +260,7 @@ Falcon.events(layoutId: "APP_NATIVE_ESSENTIAL_0.1") { event in
 
 | Event | Description |
 |---|---|
-| `.placementInteractive` | More than 50% of the placement has been visible on screen for at least 1 second. Fired at most once per `execute` call. |
+| `.placementInteractive` | At least 50% of the placement has been on the device screen, with its scene in the foreground and active, for 1 continuous second after it loaded. The SDK measures this itself; backgrounding, locking the screen or scrolling the placement off screen restarts the second. Fired at most once per `execute` call, and never before the placement loads, so never for a no-fill or a load failure. |
 | `.placementCompleted` | The placement was engaged with and removed from the UI. |
 | `.placementFailure(Error)` | The placement failed to load. |
 
@@ -388,8 +390,11 @@ The manifest also declares **`NSPrivacyCollectedDataTypeOtherDiagnosticData`** (
 ## Security
 
 - **Bridge origin check:** the SDK accepts bridge messages only from the placement page's main frame and origin (scheme, host and port). Iframes inside a placement cannot resize, click, close or report errors.
-- **Navigation:** the placement webview stays on the placement host. Taps on links open in `SFSafariViewController` (or the system for non-web links), never inside your app's webview. Other main-frame navigations are blocked.
+- **Navigation:** the placement webview stays on the placement host. Taps on links open in `SFSafariViewController`, never inside your app's webview; non-web links are dropped. Other main-frame navigations are blocked.
+- **Tap gate:** an outbound open, whether from the placement's `click` event or a link, happens only within 3 seconds of a real tap on the placement, and one tap opens at most once, so ad content cannot open Safari on its own. Any tap on the placement counts, including one on a carousel arrow or the overlay's close button, so the page can open a link within 3 seconds of such a tap; an open that arrives more than 3 seconds after the tap (for example after a slow request) is dropped.
+- **Known limitation, VoiceOver and Switch Control:** they activate web content inside WebKit with no touch and no signal to the app, so their users cannot open an ad from the placement in this release. The SDK does not bypass the gate for them, because a bypass would let any page open links with no user action.
 - **Isolated storage:** each webview uses a non-persistent website data store, so ad content never sees your app's cookies or web storage.
+- **User attributes stay out of the URL:** the email, order and other attributes passed to `execute` are never put in the placement's URL, which can end up in logs and history. The page asks for them over the bridge and the SDK answers there. Values are sent as strings (nil, `NSNull` and empty values are left out) and are not size-capped, so pass identifiers and short strings.
 - **Web Inspector:** the shipped `FalconSDK.xcframework` never enables Safari Web Inspector on its webviews.
 
 ---
@@ -430,7 +435,7 @@ Falcon.diagnosticsDelegate = myDiagnosticsHandler
 | `webviewNavigationFailed` | `WKWebView` navigation error |
 | `webviewProvisionalNavigationFailed` | `WKWebView` provisional navigation error |
 | `webviewHTTPError` | main-frame webview response had HTTP status >= 400 (load cancelled, placement failed) |
-| `webviewLoadTimedOut` | no bridge message arrived within 15s of starting the load (placement failed; overlay dismissed) |
+| `webviewLoadTimedOut` | the page did not report its load within 15s of starting it (placement failed; overlay dismissed) |
 | `bridgeReportedError` | JS bridge posted an `error` event |
 | `noPresenter` | overlay found no frontmost view controller |
 
